@@ -13,6 +13,7 @@ import java.util.concurrent.TimeUnit;
 import calculation.Calculation;
 import constants.Constants;
 import constants.Constants.states;
+import decider.Decider;
 
 public class Price extends Thread {
 	/**
@@ -23,13 +24,19 @@ public class Price extends Thread {
 	 * counter for the n
 	 */
 	private Integer n;
-
+	/**
+	 * ArrayList for the average calc
+	 */
 	private ArrayList<Double> prices;
-
+	/**
+	 * Variable for the buyin
+	 */
 	protected Double buyin;
-
+	/**
+	 * Variable for the sell price
+	 */
 	protected Double sellPrice;
-	
+
 	public void run() {
 		n = 0;
 		buyin = 0.00;
@@ -54,12 +61,11 @@ public class Price extends Thread {
 			prices.add(Double.parseDouble(strPriceAsk));
 			try {
 				// calc the average
-				Double average = prices.stream().mapToDouble(val -> val).average().orElse(0.0);
-				average = Math.round(average * 100.0) / 100.0;
+				Double average = Calculation.calcAVG(prices);
 				// calc the price with the fee
-				Double priceFee = ((1 + Constants.fee) * Double.parseDouble(strPriceBid));
-				priceFee = Math.round(priceFee * 100.0) / 100.0;
-				String state = chooseState(Double.parseDouble(strPriceAsk), average, priceFee, buyin);
+				Double priceFee = Calculation.calcPriceWithFee(strPriceBid);
+				// retrive the current state
+				String state = Decider.chooseState(Double.parseDouble(strPriceAsk), average, priceFee, buyin);
 				// if we buy, change buyin
 				if (state.equals("buy")) {
 					// put in the buyin price + fee
@@ -67,7 +73,7 @@ public class Price extends Thread {
 					// put in the sales price + fee
 					sellPrice = Calculation.calcProfit(buyin);
 				}
-				
+
 				System.out.println("Buy: " + strPriceAsk + " Sell: " + priceSell + " | n: " + n + " | Avg.: " + average
 						+ " | Price&Fee: " + priceFee + " | ->" + state + " | buyin: " + buyin + " | Profit: "
 						+ sellPrice + " | Diff.: " + Math.floor(priceFee - sellPrice));
@@ -107,24 +113,5 @@ public class Price extends Thread {
 			ex.printStackTrace();
 		}
 		return json;
-	}
-
-	/**
-	 * Method that chooeses the state to use
-	 * 
-	 * @param price
-	 * @param average
-	 * @param priceFee
-	 * @param buyin
-	 * @return
-	 */
-	private static String chooseState(Double price, Double average, Double priceSell, Double buyin) {
-		if (price < average && buyin == 0.00) {
-			// if the price is in a good pos buy crypto
-			return states.buy.toString();
-		} else if (price > priceSell && buyin != 0.00) {
-			return states.sell.toString();
-		}
-		return states.hold.toString();
 	}
 }
